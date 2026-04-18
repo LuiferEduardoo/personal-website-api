@@ -10,6 +10,8 @@ from app.repositories.category import CategoryRepository
 from app.repositories.subcategory import SubcategoryRepository
 from app.schemas.blog_post import BlogPostRead
 from app.services.blog_post import (
+    BlogPostForbiddenError,
+    BlogPostNotFoundError,
     BlogPostService,
     InvalidCategoriesError,
     InvalidSubcategoriesError,
@@ -85,6 +87,92 @@ async def create_blog_post(
             image_file=image_bytes,
             image_url=url,
         )
+    except InvalidCategoriesError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except InvalidSubcategoriesError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except InvalidImageUrlError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except ImageConverterError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or unsupported image file",
+        ) from exc
+    except StorageUploadError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to upload to storage",
+        ) from exc
+
+    return BlogPostRead.model_validate(post)
+
+
+@router.patch(
+    "/{post_id}",
+    response_model=BlogPostRead,
+    status_code=status.HTTP_200_OK,
+    summary="Update a blog post (only the owner; cover image optional via file or URL)",
+    dependencies=protected,
+)
+async def update_blog_post(
+    post_id: int,
+    current_user: CurrentUser,
+    blog_post_service: BlogPostServiceDep,
+    title: Annotated[str | None, Form(min_length=1, max_length=512)] = None,
+    content: Annotated[str | None, Form(min_length=1)] = None,
+    visible: Annotated[bool | None, Form()] = None,
+    category_ids: Annotated[list[int] | None, Form()] = None,
+    subcategory_ids: Annotated[list[int] | None, Form()] = None,
+    file: UploadFile | None = File(default=None),
+    url: str | None = Form(default=None),
+) -> BlogPostRead:
+    if file is not None and url is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide at most one of 'file' or 'url'.",
+        )
+
+    image_bytes: bytes | None = None
+    if file is not None:
+        if file.content_type is None or not file.content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="File must be an image",
+            )
+        image_bytes = await file.read()
+        if len(image_bytes) > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+            )
+
+    try:
+        post = await blog_post_service.update(
+            post_id=post_id,
+            requester=current_user,
+            title=title,
+            content=content,
+            visible=visible,
+            category_ids=category_ids,
+            subcategory_ids=subcategory_ids,
+            image_file=image_bytes,
+            image_url=url,
+        )
+    except BlogPostNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
+        ) from exc
+    except BlogPostForbiddenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to edit this blog post",
+        ) from exc
     except InvalidCategoriesError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)

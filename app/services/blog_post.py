@@ -18,6 +18,14 @@ class InvalidSubcategoriesError(Exception):
     """Raised when some of the supplied subcategory IDs do not exist."""
 
 
+class BlogPostNotFoundError(Exception):
+    """Raised when a blog post cannot be found or is soft-deleted."""
+
+
+class BlogPostForbiddenError(Exception):
+    """Raised when a user tries to modify a blog post they do not own."""
+
+
 class BlogPostService:
     def __init__(
         self,
@@ -64,6 +72,52 @@ class BlogPostService:
         session.add(post)
         await session.flush()
         await session.refresh(post, ["created_at", "updated_at"])
+        await session.commit()
+        return post
+
+    async def update(
+        self,
+        *,
+        post_id: int,
+        requester: User,
+        title: str | None = None,
+        content: str | None = None,
+        visible: bool | None = None,
+        category_ids: Sequence[int] | None = None,
+        subcategory_ids: Sequence[int] | None = None,
+        image_file: bytes | None = None,
+        image_url: str | None = None,
+    ) -> BlogPost:
+        post = await self.blog_post_repository.get_active(post_id)
+        if post is None:
+            raise BlogPostNotFoundError()
+        if post.user_id != requester.id:
+            raise BlogPostForbiddenError()
+
+        if category_ids is not None:
+            categories = await self._fetch_categories(category_ids)
+            post.categories = list(categories)
+        if subcategory_ids is not None:
+            subcategories = await self._fetch_subcategories(subcategory_ids)
+            post.subcategories = list(subcategories)
+
+        if title is not None:
+            post.title = title
+            post.link = slugify(title)
+        if content is not None:
+            post.content = content
+            post.reading_time = estimate_reading_time(content)
+        if visible is not None:
+            post.visible = visible
+
+        if image_file is not None or image_url is not None:
+            cover_image = await self._build_cover_image(image_file, image_url)
+            post.cover_image = cover_image
+            post.cover_image_id = cover_image.id
+
+        session = self.blog_post_repository.session
+        await session.flush()
+        await session.refresh(post, ["updated_at"])
         await session.commit()
         return post
 
