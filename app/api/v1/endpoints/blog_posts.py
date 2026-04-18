@@ -1,6 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 
 from app.dependencies.auth import CurrentUser, protected
 from app.dependencies.db import AsyncDBSession
@@ -197,3 +206,28 @@ async def update_blog_post(
         ) from exc
 
     return BlogPostRead.model_validate(post)
+
+
+@router.delete(
+    "/{post_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft-delete a blog post (only the owner)",
+    dependencies=protected,
+)
+async def delete_blog_post(
+    post_id: int,
+    current_user: CurrentUser,
+    blog_post_service: BlogPostServiceDep,
+) -> Response:
+    try:
+        await blog_post_service.delete(post_id=post_id, requester=current_user)
+    except BlogPostNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
+        ) from exc
+    except BlogPostForbiddenError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to delete this blog post",
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

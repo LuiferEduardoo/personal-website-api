@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
 from app.core.text import estimate_reading_time, slugify
 from app.models.blog_post import BlogPost
@@ -120,6 +121,16 @@ class BlogPostService:
         await session.refresh(post, ["updated_at"])
         await session.commit()
         return post
+
+    async def delete(self, *, post_id: int, requester: User) -> None:
+        post = await self.blog_post_repository.get_active(post_id)
+        if post is None:
+            raise BlogPostNotFoundError()
+        if post.user_id != requester.id:
+            raise BlogPostForbiddenError()
+
+        post.deleted_at = datetime.now(timezone.utc)
+        await self.blog_post_repository.session.commit()
 
     async def _fetch_categories(self, ids: Sequence[int]):
         unique_ids = list(dict.fromkeys(ids))
