@@ -14,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IDMixin, TimestampMixin
 from app.models.category import Category
+from app.models.image import Image
 from app.models.subcategory import Subcategory
 from app.models.user import User
 
@@ -74,6 +75,10 @@ class BlogPost(Base, IDMixin, TimestampMixin):
         nullable=False,
         index=True,
     )
+    cover_image_id: Mapped[int | None] = mapped_column(
+        ForeignKey("images.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     reading_time: Mapped[time | None] = mapped_column(Time, nullable=True)
     visible: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
@@ -85,6 +90,7 @@ class BlogPost(Base, IDMixin, TimestampMixin):
     user: Mapped[User] = relationship(
         "User", foreign_keys=[user_id], lazy="selectin"
     )
+    cover_image: Mapped[Image | None] = relationship("Image", lazy="selectin")
     authors: Mapped[list[User]] = relationship(
         "User", secondary=blog_post_authors, lazy="selectin"
     )
