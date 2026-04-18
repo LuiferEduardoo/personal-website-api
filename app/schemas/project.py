@@ -15,6 +15,16 @@ class ProjectCreate(BaseSchema):
     subcategory_ids: list[int] = Field(default_factory=list)
 
 
+class ProjectUpdate(BaseSchema):
+    name: str | None = Field(default=None, min_length=1, max_length=512)
+    brief_description: str | None = Field(default=None, min_length=1)
+    description: str | None = Field(default=None, min_length=1)
+    url_project: str | None = Field(default=None, min_length=1, max_length=2048)
+    visible: bool | None = None
+    category_ids: list[int] | None = None
+    subcategory_ids: list[int] | None = None
+
+
 class ProjectRead(TimestampSchema):
     id: int
     name: str

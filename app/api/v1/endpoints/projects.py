@@ -7,8 +7,8 @@ from app.dependencies.db import AsyncDBSession
 from app.repositories.category import CategoryRepository
 from app.repositories.project import ProjectRepository
 from app.repositories.subcategory import SubcategoryRepository
-from app.schemas.project import ProjectCreate, ProjectRead
-from app.services.project import ProjectService
+from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.services.project import ProjectNotFoundError, ProjectService
 from app.services.taxonomy import InvalidCategoriesError, InvalidSubcategoriesError
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -46,6 +46,39 @@ async def create_project(
             category_ids=payload.category_ids,
             subcategory_ids=payload.subcategory_ids,
         )
+    except InvalidCategoriesError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+    except InvalidSubcategoriesError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+        ) from exc
+
+    return ProjectRead.model_validate(project)
+
+
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectRead,
+    status_code=status.HTTP_200_OK,
+    summary="Update a project",
+    dependencies=protected,
+)
+async def update_project(
+    project_id: int,
+    payload: ProjectUpdate,
+    project_service: ProjectServiceDep,
+) -> ProjectRead:
+    try:
+        project = await project_service.update(
+            project_id=project_id,
+            data=payload.model_dump(exclude_unset=True),
+        )
+    except ProjectNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        ) from exc
     except InvalidCategoriesError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)

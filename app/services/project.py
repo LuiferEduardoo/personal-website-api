@@ -1,9 +1,18 @@
+from typing import Any
+
 from app.core.text import slugify
 from app.models.project import Project
 from app.repositories.category import CategoryRepository
 from app.repositories.project import ProjectRepository
 from app.repositories.subcategory import SubcategoryRepository
 from app.services.taxonomy import fetch_categories, fetch_subcategories
+
+
+class ProjectNotFoundError(Exception):
+    """Raised when a project cannot be found or is soft-deleted."""
+
+
+_SIMPLE_FIELDS = ("brief_description", "description", "url_project", "visible")
 
 
 class ProjectService:
@@ -48,5 +57,34 @@ class ProjectService:
         session.add(project)
         await session.flush()
         await session.refresh(project, ["created_at", "updated_at"])
+        await session.commit()
+        return project
+
+    async def update(self, *, project_id: int, data: dict[str, Any]) -> Project:
+        project = await self.project_repository.get_active(project_id)
+        if project is None:
+            raise ProjectNotFoundError()
+
+        if "category_ids" in data:
+            categories = await fetch_categories(
+                self.category_repository, data["category_ids"]
+            )
+            project.categories = list(categories)
+        if "subcategory_ids" in data:
+            subcategories = await fetch_subcategories(
+                self.subcategory_repository, data["subcategory_ids"]
+            )
+            project.subcategories = list(subcategories)
+
+        if "name" in data:
+            project.name = data["name"]
+            project.link = slugify(data["name"])
+        for key in _SIMPLE_FIELDS:
+            if key in data:
+                setattr(project, key, data[key])
+
+        session = self.project_repository.session
+        await session.flush()
+        await session.refresh(project, ["updated_at"])
         await session.commit()
         return project
