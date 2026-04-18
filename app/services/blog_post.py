@@ -122,6 +122,25 @@ class BlogPostService:
         await session.commit()
         return post
 
+    async def list_visible(
+        self, *, limit: int, offset: int
+    ) -> tuple[list[BlogPost], int]:
+        items = await self.blog_post_repository.list_visible(limit, offset)
+        total = await self.blog_post_repository.count_visible()
+        return items, total
+
+    async def get_visible(self, post_id: int) -> BlogPost:
+        post = await self.blog_post_repository.get_visible(post_id)
+        if post is None:
+            raise BlogPostNotFoundError()
+        return post
+
+    async def get_visible_by_link(self, link: str) -> BlogPost:
+        post = await self.blog_post_repository.get_visible_by_link(link)
+        if post is None:
+            raise BlogPostNotFoundError()
+        return post
+
     async def delete(self, *, post_id: int, requester: User) -> None:
         post = await self.blog_post_repository.get_active(post_id)
         if post is None:

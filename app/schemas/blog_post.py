@@ -2,7 +2,7 @@ from datetime import time
 
 from pydantic import EmailStr
 
-from app.schemas.base import TimestampSchema
+from app.schemas.base import BaseSchema, TimestampSchema
 from app.schemas.category import CategoryRead
 from app.schemas.image import ImageRead
 from app.schemas.subcategory import SubcategoryRead
@@ -26,3 +26,10 @@ class BlogPostRead(TimestampSchema):
     authors: list[AuthorBrief]
     categories: list[CategoryRead]
     subcategories: list[SubcategoryRead]
+
+
+class PaginatedBlogPosts(BaseSchema):
+    items: list[BlogPostRead]
+    total: int
+    limit: int
+    offset: int

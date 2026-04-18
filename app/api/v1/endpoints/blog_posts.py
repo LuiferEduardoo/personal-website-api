@@ -6,6 +6,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Response,
     UploadFile,
     status,
@@ -17,7 +18,7 @@ from app.dependencies.storage import ImageServiceDep
 from app.repositories.blog_post import BlogPostRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.subcategory import SubcategoryRepository
-from app.schemas.blog_post import BlogPostRead
+from app.schemas.blog_post import BlogPostRead, PaginatedBlogPosts
 from app.services.blog_post import (
     BlogPostForbiddenError,
     BlogPostNotFoundError,
@@ -47,6 +48,64 @@ def get_blog_post_service(
 
 
 BlogPostServiceDep = Annotated[BlogPostService, Depends(get_blog_post_service)]
+
+
+@router.get(
+    "",
+    response_model=PaginatedBlogPosts,
+    status_code=status.HTTP_200_OK,
+    summary="List visible blog posts (paginated)",
+)
+async def list_blog_posts(
+    blog_post_service: BlogPostServiceDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedBlogPosts:
+    items, total = await blog_post_service.list_visible(limit=limit, offset=offset)
+    return PaginatedBlogPosts(
+        items=[BlogPostRead.model_validate(p) for p in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/link/{link}",
+    response_model=BlogPostRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get a visible blog post by its link (slug)",
+)
+async def get_blog_post_by_link(
+    link: str,
+    blog_post_service: BlogPostServiceDep,
+) -> BlogPostRead:
+    try:
+        post = await blog_post_service.get_visible_by_link(link)
+    except BlogPostNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
+        ) from exc
+    return BlogPostRead.model_validate(post)
+
+
+@router.get(
+    "/{post_id}",
+    response_model=BlogPostRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get a visible blog post by id",
+)
+async def get_blog_post(
+    post_id: int,
+    blog_post_service: BlogPostServiceDep,
+) -> BlogPostRead:
+    try:
+        post = await blog_post_service.get_visible(post_id)
+    except BlogPostNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
+        ) from exc
+    return BlogPostRead.model_validate(post)
 
 
 @router.post(
