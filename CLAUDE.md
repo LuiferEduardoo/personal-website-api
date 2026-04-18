@@ -109,6 +109,19 @@ pytest
 - Dependencias tipadas con `Annotated[Tipo, Depends(func)]`.
 - Errores: lanza `HTTPException` con `status_code` correcto. Nada de `return {"error": ...}` con 200.
 
+### Endpoints protegidos (auth)
+- **Verificación de token: nunca dentro de services.** Vive en [app/dependencies/auth.py](app/dependencies/auth.py) (`get_current_user`). Los services asumen que el usuario ya viene autenticado.
+- **Todo endpoint que requiera autenticación usa el decorator `protected`:**
+  ```python
+  from app.dependencies.auth import CurrentUser, protected
+
+  @router.post("/foo", dependencies=protected)
+  async def foo(current_user: CurrentUser): ...
+  ```
+- `dependencies=protected` es obligatorio para marcar la intención, aunque el endpoint también reciba `current_user: CurrentUser`. Deja la protección explícita en la firma del endpoint.
+- Si el endpoint NO necesita al usuario, basta con `dependencies=protected` (sin el parámetro).
+- No dupliques decodificación de JWT en otros archivos. Si necesitas validar el token desde otro lugar, reutiliza `get_current_user` o `decode_access_token` de [app/core/security.py](app/core/security.py).
+
 ### MySQL / configuración
 - Strings de conexión se derivan en [app/core/config.py](app/core/config.py) — no las construyas a mano en otros archivos.
 - Nunca commitees `.env`. Mantén `.env.example` actualizado si añades variables.
