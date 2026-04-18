@@ -89,6 +89,7 @@ pytest
 - Async por defecto para endpoints (`AsyncSession`). Usa sync sólo en scripts/Alembic.
 - No hagas `commit` dentro de repositorios — eso es responsabilidad del service o del endpoint (transacción por request).
 - `expire_on_commit=False` ya está configurado — ten cuidado al refrescar objetos.
+- **Timestamps obligatorios en todo modelo:** `created_at`, `updated_at` y `deleted_at` (soft delete). `created_at`/`updated_at` vienen del `TimestampMixin`; `deleted_at` debe ser `DateTime(timezone=True)` nullable e indexado. Todas las queries por defecto deben filtrar `deleted_at IS NULL`.
 
 ### Alembic
 - **Siempre** `--autogenerate` a partir de los modelos, pero **revisa la migración antes de aplicarla** (autogenerate no detecta todo: renombres, enums, constraints con nombre).
