@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 
 from app.core.text import slugify
@@ -88,3 +89,11 @@ class ProjectService:
         await session.refresh(project, ["updated_at"])
         await session.commit()
         return project
+
+    async def delete(self, *, project_id: int) -> None:
+        project = await self.project_repository.get_active(project_id)
+        if project is None:
+            raise ProjectNotFoundError()
+
+        project.deleted_at = datetime.now(timezone.utc)
+        await self.project_repository.session.commit()

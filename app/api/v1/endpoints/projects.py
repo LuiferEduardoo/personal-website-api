@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.dependencies.auth import protected
 from app.dependencies.db import AsyncDBSession
@@ -89,3 +89,22 @@ async def update_project(
         ) from exc
 
     return ProjectRead.model_validate(project)
+
+
+@router.delete(
+    "/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Soft-delete a project",
+    dependencies=protected,
+)
+async def delete_project(
+    project_id: int,
+    project_service: ProjectServiceDep,
+) -> Response:
+    try:
+        await project_service.delete(project_id=project_id)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        ) from exc
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
