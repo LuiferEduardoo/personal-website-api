@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.models import Base
 
 # Import every model module here so Alembic's autogenerate can see them.
-from app.models import category, image, user  # noqa: F401
+from app.models import category, image, subcategory, user  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url_sync)
