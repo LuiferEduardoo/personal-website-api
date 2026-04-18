@@ -1,13 +1,18 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.dependencies.auth import protected
 from app.dependencies.db import AsyncDBSession
 from app.repositories.category import CategoryRepository
 from app.repositories.project import ProjectRepository
 from app.repositories.subcategory import SubcategoryRepository
-from app.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
+from app.schemas.project import (
+    PaginatedProjects,
+    ProjectCreate,
+    ProjectRead,
+    ProjectUpdate,
+)
 from app.services.project import ProjectNotFoundError, ProjectService
 from app.services.taxonomy import InvalidCategoriesError, InvalidSubcategoriesError
 
@@ -23,6 +28,64 @@ def get_project_service(session: AsyncDBSession) -> ProjectService:
 
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
+
+
+@router.get(
+    "",
+    response_model=PaginatedProjects,
+    status_code=status.HTTP_200_OK,
+    summary="List visible projects (paginated)",
+)
+async def list_projects(
+    project_service: ProjectServiceDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> PaginatedProjects:
+    items, total = await project_service.list_visible(limit=limit, offset=offset)
+    return PaginatedProjects(
+        items=[ProjectRead.model_validate(p) for p in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/link/{link}",
+    response_model=ProjectRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get a visible project by its link (slug)",
+)
+async def get_project_by_link(
+    link: str,
+    project_service: ProjectServiceDep,
+) -> ProjectRead:
+    try:
+        project = await project_service.get_visible_by_link(link)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        ) from exc
+    return ProjectRead.model_validate(project)
+
+
+@router.get(
+    "/{project_id}",
+    response_model=ProjectRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get a visible project by id",
+)
+async def get_project(
+    project_id: int,
+    project_service: ProjectServiceDep,
+) -> ProjectRead:
+    try:
+        project = await project_service.get_visible(project_id)
+    except ProjectNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        ) from exc
+    return ProjectRead.model_validate(project)
 
 
 @router.post(

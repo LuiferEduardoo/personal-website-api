@@ -35,3 +35,10 @@ class ProjectRead(TimestampSchema):
     url_project: str
     categories: list[CategoryRead]
     subcategories: list[SubcategoryRead]
+
+
+class PaginatedProjects(BaseSchema):
+    items: list[ProjectRead]
+    total: int
+    limit: int
+    offset: int

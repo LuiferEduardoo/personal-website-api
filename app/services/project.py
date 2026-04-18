@@ -90,6 +90,25 @@ class ProjectService:
         await session.commit()
         return project
 
+    async def list_visible(
+        self, *, limit: int, offset: int
+    ) -> tuple[list[Project], int]:
+        items = await self.project_repository.list_visible(limit, offset)
+        total = await self.project_repository.count_visible()
+        return items, total
+
+    async def get_visible(self, project_id: int) -> Project:
+        project = await self.project_repository.get_visible(project_id)
+        if project is None:
+            raise ProjectNotFoundError()
+        return project
+
+    async def get_visible_by_link(self, link: str) -> Project:
+        project = await self.project_repository.get_visible_by_link(link)
+        if project is None:
+            raise ProjectNotFoundError()
+        return project
+
     async def delete(self, *, project_id: int) -> None:
         project = await self.project_repository.get_active(project_id)
         if project is None:
