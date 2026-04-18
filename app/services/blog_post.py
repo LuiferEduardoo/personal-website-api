@@ -9,14 +9,7 @@ from app.repositories.blog_post import BlogPostRepository
 from app.repositories.category import CategoryRepository
 from app.repositories.subcategory import SubcategoryRepository
 from app.services.image import ImageService
-
-
-class InvalidCategoriesError(Exception):
-    """Raised when some of the supplied category IDs do not exist."""
-
-
-class InvalidSubcategoriesError(Exception):
-    """Raised when some of the supplied subcategory IDs do not exist."""
+from app.services.taxonomy import fetch_categories, fetch_subcategories
 
 
 class BlogPostNotFoundError(Exception):
@@ -51,8 +44,10 @@ class BlogPostService:
         image_file: bytes | None = None,
         image_url: str | None = None,
     ) -> BlogPost:
-        categories = await self._fetch_categories(category_ids)
-        subcategories = await self._fetch_subcategories(subcategory_ids)
+        categories = await fetch_categories(self.category_repository, category_ids)
+        subcategories = await fetch_subcategories(
+            self.subcategory_repository, subcategory_ids
+        )
         cover_image = await self._build_cover_image(image_file, image_url)
 
         post = BlogPost(
@@ -96,10 +91,12 @@ class BlogPostService:
             raise BlogPostForbiddenError()
 
         if category_ids is not None:
-            categories = await self._fetch_categories(category_ids)
+            categories = await fetch_categories(self.category_repository, category_ids)
             post.categories = list(categories)
         if subcategory_ids is not None:
-            subcategories = await self._fetch_subcategories(subcategory_ids)
+            subcategories = await fetch_subcategories(
+                self.subcategory_repository, subcategory_ids
+            )
             post.subcategories = list(subcategories)
 
         if title is not None:
@@ -150,24 +147,6 @@ class BlogPostService:
 
         post.deleted_at = datetime.now(timezone.utc)
         await self.blog_post_repository.session.commit()
-
-    async def _fetch_categories(self, ids: Sequence[int]):
-        unique_ids = list(dict.fromkeys(ids))
-        categories = await self.category_repository.list_by_ids(unique_ids)
-        if len(categories) != len(unique_ids):
-            raise InvalidCategoriesError(
-                "One or more categories do not exist or are deleted."
-            )
-        return categories
-
-    async def _fetch_subcategories(self, ids: Sequence[int]):
-        unique_ids = list(dict.fromkeys(ids))
-        subcategories = await self.subcategory_repository.list_by_ids(unique_ids)
-        if len(subcategories) != len(unique_ids):
-            raise InvalidSubcategoriesError(
-                "One or more subcategories do not exist or are deleted."
-            )
-        return subcategories
 
     async def _build_cover_image(
         self, image_file: bytes | None, image_url: str | None

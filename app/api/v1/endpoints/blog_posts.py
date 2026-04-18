@@ -23,12 +23,11 @@ from app.services.blog_post import (
     BlogPostForbiddenError,
     BlogPostNotFoundError,
     BlogPostService,
-    InvalidCategoriesError,
-    InvalidSubcategoriesError,
 )
 from app.services.image import InvalidImageUrlError
 from app.services.image_converter import ImageConverterError
 from app.services.storage import StorageUploadError
+from app.services.taxonomy import InvalidCategoriesError, InvalidSubcategoriesError
 
 router = APIRouter(prefix="/blog-posts", tags=["blog-posts"])
 
