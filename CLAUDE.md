@@ -108,6 +108,7 @@ pytest
 - `response_model` explícito en cada endpoint (no retornes modelos ORM crudos).
 - Dependencias tipadas con `Annotated[Tipo, Depends(func)]`.
 - Errores: lanza `HTTPException` con `status_code` correcto. Nada de `return {"error": ...}` con 200.
+- **Paginación:** endpoints que listan recursos usan `limit` + `offset` como query params. `limit` tiene **default 10** y máximo 100 (`Query(ge=1, le=100) = 10`); `offset` default 0 (`Query(ge=0) = 0`). Responde con un schema `PaginatedX` que incluya `items`, `total`, `limit`, `offset`.
 
 ### Endpoints protegidos (auth)
 - **Verificación de token: nunca dentro de services.** Vive en [app/dependencies/auth.py](app/dependencies/auth.py) (`get_current_user`). Los services asumen que el usuario ya viene autenticado.
