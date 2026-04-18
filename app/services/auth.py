@@ -1,9 +1,13 @@
 from datetime import timedelta
 
 from app.core.config import settings
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user import UserRepository
+
+
+class InvalidCurrentPasswordError(Exception):
+    """Raised when a user provides an incorrect current password."""
 
 
 class AuthService:
@@ -22,3 +26,11 @@ class AuthService:
         expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
         token = create_access_token(subject=user.id, expires_delta=expires_delta)
         return token, int(expires_delta.total_seconds())
+
+    async def change_password(
+        self, user: User, current_password: str, new_password: str
+    ) -> None:
+        if not verify_password(current_password, user.password):
+            raise InvalidCurrentPasswordError()
+        user.password = hash_password(new_password)
+        await self.user_repository.session.commit()

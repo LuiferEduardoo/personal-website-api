@@ -28,4 +28,9 @@ def create_access_token(subject: int, expires_delta: timedelta | None = None) ->
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+    return jwt.decode(
+        token,
+        settings.secret_key,
+        algorithms=[settings.jwt_algorithm],
+        options={"verify_sub": False},
+    )
