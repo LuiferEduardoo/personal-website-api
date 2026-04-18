@@ -29,3 +29,8 @@ class UserService:
             await self.user_repository.session.commit()
 
         return await self.user_repository.get_with_profile_photo(user.id)
+
+    async def set_profile_photo(self, user: User, image_id: int) -> User | None:
+        user.profile_photo_id = image_id
+        await self.user_repository.session.commit()
+        return await self.user_repository.get_with_profile_photo(user.id)

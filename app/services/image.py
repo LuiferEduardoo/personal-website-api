@@ -2,6 +2,8 @@ import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
+import httpx
+
 from app.models.image import Image
 from app.repositories.image import ImageRepository
 from app.services.image_converter import ImageConverterService
@@ -9,6 +11,8 @@ from app.services.storage import S3StorageService
 
 _ROOT_FOLDER = "img"
 _FOLDER_PATTERN = re.compile(r"^[a-zA-Z0-9_\-/]{1,128}$")
+_MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024
+_DOWNLOAD_TIMEOUT_SECONDS = 10.0
 
 
 class ImageNotFoundError(Exception):
@@ -17,6 +21,10 @@ class ImageNotFoundError(Exception):
 
 class InvalidFolderError(Exception):
     """Raised when the supplied folder name contains unsafe characters."""
+
+
+class InvalidImageUrlError(Exception):
+    """Raised when an image URL cannot be fetched or is not a valid image."""
 
 
 class ImageService:
@@ -45,6 +53,34 @@ class ImageService:
         )
         await self.image_repository.session.commit()
         return image
+
+    async def upload_from_url(self, url: str, folder: str | None = None) -> Image:
+        data = await self._download(url)
+        return await self.upload(data, folder=folder)
+
+    @staticmethod
+    async def _download(url: str) -> bytes:
+        if not url.lower().startswith(("http://", "https://")):
+            raise InvalidImageUrlError("URL must use http or https scheme.")
+        try:
+            async with httpx.AsyncClient(
+                timeout=_DOWNLOAD_TIMEOUT_SECONDS, follow_redirects=True
+            ) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise InvalidImageUrlError("Unable to fetch image from URL.") from exc
+
+        content_type = response.headers.get("content-type", "").split(";")[0].strip()
+        if not content_type.startswith("image/"):
+            raise InvalidImageUrlError("URL did not return an image.")
+
+        data = response.content
+        if len(data) > _MAX_DOWNLOAD_BYTES:
+            raise InvalidImageUrlError(
+                f"Image exceeds the {_MAX_DOWNLOAD_BYTES // (1024 * 1024)} MB limit."
+            )
+        return data
 
     async def delete(self, image_id: int) -> None:
         image = await self.image_repository.get_active(image_id)
