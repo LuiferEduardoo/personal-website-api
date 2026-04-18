@@ -31,6 +31,10 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=list)
 
+    secret_key: str = "change-me-to-a-long-random-string"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url_async(self) -> str:
