@@ -13,6 +13,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IDMixin, TimestampMixin
+from app.models.category import Category
+from app.models.subcategory import Subcategory
 from app.models.user import User
 
 blog_post_authors = Table(
@@ -26,6 +28,36 @@ blog_post_authors = Table(
     Column(
         "user_id",
         ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+blog_post_categories = Table(
+    "blog_post_categories",
+    Base.metadata,
+    Column(
+        "blog_post_id",
+        ForeignKey("blog_posts.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "category_id",
+        ForeignKey("categories.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+blog_post_subcategories = Table(
+    "blog_post_subcategories",
+    Base.metadata,
+    Column(
+        "blog_post_id",
+        ForeignKey("blog_posts.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "subcategory_id",
+        ForeignKey("subcategories.id", ondelete="CASCADE"),
         primary_key=True,
     ),
 )
@@ -55,4 +87,10 @@ class BlogPost(Base, IDMixin, TimestampMixin):
     )
     authors: Mapped[list[User]] = relationship(
         "User", secondary=blog_post_authors, lazy="selectin"
+    )
+    categories: Mapped[list[Category]] = relationship(
+        "Category", secondary=blog_post_categories, lazy="selectin"
+    )
+    subcategories: Mapped[list[Subcategory]] = relationship(
+        "Subcategory", secondary=blog_post_subcategories, lazy="selectin"
     )
