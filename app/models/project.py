@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, IDMixin, TimestampMixin
 from app.models.category import Category
+from app.models.image import Image
 from app.models.subcategory import Subcategory
 
 project_categories = Table(
@@ -49,10 +50,15 @@ class Project(Base, IDMixin, TimestampMixin):
         Boolean, nullable=False, default=True, server_default="1"
     )
     url_project: Mapped[str] = mapped_column(Text, nullable=False)
+    image_id: Mapped[int | None] = mapped_column(
+        ForeignKey("images.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
 
+    image: Mapped[Image | None] = relationship("Image", lazy="selectin")
     categories: Mapped[list[Category]] = relationship(
         "Category", secondary=project_categories, lazy="selectin"
     )
