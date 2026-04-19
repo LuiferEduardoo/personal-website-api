@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
 
-    cors_origins: list[str] = Field(default_factory=list)
+    cors_origins: list[str] = Field(default_factory=lambda: ["*"])
 
     secret_key: str = "change-me-to-a-long-random-string"
     jwt_algorithm: str = "HS256"
