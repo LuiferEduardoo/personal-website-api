@@ -12,7 +12,7 @@ from fastapi import (
     status,
 )
 
-from app.dependencies.auth import protected
+from app.dependencies.auth import OptionalUser, protected
 from app.dependencies.db import AsyncDBSession
 from app.dependencies.storage import ImageServiceDep
 from app.repositories.category import CategoryRepository
@@ -53,10 +53,13 @@ ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 )
 async def list_projects(
     project_service: ProjectServiceDep,
+    current_user: OptionalUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PaginatedProjects:
-    items, total = await project_service.list_visible(limit=limit, offset=offset)
+    items, total = await project_service.list_visible(
+        limit=limit, offset=offset, include_hidden=current_user is not None
+    )
     return PaginatedProjects(
         items=[ProjectRead.model_validate(p) for p in items],
         total=total,
@@ -74,9 +77,12 @@ async def list_projects(
 async def get_project_by_link(
     link: str,
     project_service: ProjectServiceDep,
+    current_user: OptionalUser,
 ) -> ProjectRead:
     try:
-        project = await project_service.get_visible_by_link(link)
+        project = await project_service.get_visible_by_link(
+            link, include_hidden=current_user is not None
+        )
     except ProjectNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
@@ -93,9 +99,12 @@ async def get_project_by_link(
 async def get_project(
     project_id: int,
     project_service: ProjectServiceDep,
+    current_user: OptionalUser,
 ) -> ProjectRead:
     try:
-        project = await project_service.get_visible(project_id)
+        project = await project_service.get_visible(
+            project_id, include_hidden=current_user is not None
+        )
     except ProjectNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"

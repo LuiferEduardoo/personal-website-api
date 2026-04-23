@@ -120,20 +120,32 @@ class BlogPostService:
         return post
 
     async def list_visible(
-        self, *, limit: int, offset: int
+        self, *, limit: int, offset: int, include_hidden: bool = False
     ) -> tuple[list[BlogPost], int]:
-        items = await self.blog_post_repository.list_visible(limit, offset)
-        total = await self.blog_post_repository.count_visible()
+        items = await self.blog_post_repository.list_visible(
+            limit, offset, include_hidden=include_hidden
+        )
+        total = await self.blog_post_repository.count_visible(
+            include_hidden=include_hidden
+        )
         return items, total
 
-    async def get_visible(self, post_id: int) -> BlogPost:
-        post = await self.blog_post_repository.get_visible(post_id)
+    async def get_visible(
+        self, post_id: int, *, include_hidden: bool = False
+    ) -> BlogPost:
+        post = await self.blog_post_repository.get_visible(
+            post_id, include_hidden=include_hidden
+        )
         if post is None:
             raise BlogPostNotFoundError()
         return post
 
-    async def get_visible_by_link(self, link: str) -> BlogPost:
-        post = await self.blog_post_repository.get_visible_by_link(link)
+    async def get_visible_by_link(
+        self, link: str, *, include_hidden: bool = False
+    ) -> BlogPost:
+        post = await self.blog_post_repository.get_visible_by_link(
+            link, include_hidden=include_hidden
+        )
         if post is None:
             raise BlogPostNotFoundError()
         return post

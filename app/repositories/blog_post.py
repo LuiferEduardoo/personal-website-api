@@ -17,44 +17,50 @@ class BlogPostRepository(BaseRepository[BlogPost]):
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_visible(self, limit: int, offset: int) -> list[BlogPost]:
+    async def list_visible(
+        self, limit: int, offset: int, *, include_hidden: bool = False
+    ) -> list[BlogPost]:
+        stmt = select(BlogPost).where(BlogPost.deleted_at.is_(None))
+        if not include_hidden:
+            stmt = stmt.where(BlogPost.visible.is_(True))
         stmt = (
-            select(BlogPost)
-            .where(BlogPost.deleted_at.is_(None), BlogPost.visible.is_(True))
-            .order_by(BlogPost.created_at.desc(), BlogPost.id.desc())
+            stmt.order_by(BlogPost.created_at.desc(), BlogPost.id.desc())
             .limit(limit)
             .offset(offset)
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_visible(self) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(BlogPost)
-            .where(BlogPost.deleted_at.is_(None), BlogPost.visible.is_(True))
+    async def count_visible(self, *, include_hidden: bool = False) -> int:
+        stmt = select(func.count()).select_from(BlogPost).where(
+            BlogPost.deleted_at.is_(None)
         )
+        if not include_hidden:
+            stmt = stmt.where(BlogPost.visible.is_(True))
         result = await self.session.execute(stmt)
         return int(result.scalar_one())
 
-    async def get_visible(self, post_id: int) -> BlogPost | None:
+    async def get_visible(
+        self, post_id: int, *, include_hidden: bool = False
+    ) -> BlogPost | None:
         stmt = select(BlogPost).where(
             BlogPost.id == post_id,
             BlogPost.deleted_at.is_(None),
-            BlogPost.visible.is_(True),
         )
+        if not include_hidden:
+            stmt = stmt.where(BlogPost.visible.is_(True))
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_visible_by_link(self, link: str) -> BlogPost | None:
-        stmt = (
-            select(BlogPost)
-            .where(
-                BlogPost.link == link,
-                BlogPost.deleted_at.is_(None),
-                BlogPost.visible.is_(True),
-            )
-            .order_by(BlogPost.created_at.desc(), BlogPost.id.desc())
+    async def get_visible_by_link(
+        self, link: str, *, include_hidden: bool = False
+    ) -> BlogPost | None:
+        stmt = select(BlogPost).where(
+            BlogPost.link == link,
+            BlogPost.deleted_at.is_(None),
         )
+        if not include_hidden:
+            stmt = stmt.where(BlogPost.visible.is_(True))
+        stmt = stmt.order_by(BlogPost.created_at.desc(), BlogPost.id.desc())
         result = await self.session.execute(stmt)
         return result.scalars().first()

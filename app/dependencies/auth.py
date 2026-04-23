@@ -10,6 +10,7 @@ from app.models.user import User
 from app.repositories.user import UserRepository
 
 bearer_scheme = HTTPBearer(auto_error=True)
+optional_bearer_scheme = HTTPBearer(auto_error=False)
 
 _CREDENTIALS_EXCEPTION = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -44,6 +45,37 @@ async def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def get_optional_user(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(optional_bearer_scheme)
+    ],
+    session: AsyncDBSession,
+) -> User | None:
+    if credentials is None:
+        return None
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except InvalidTokenError:
+        return None
+
+    sub = payload.get("sub")
+    if sub is None:
+        return None
+
+    try:
+        user_id = int(sub)
+    except (TypeError, ValueError):
+        return None
+
+    user = await UserRepository(session).get(user_id)
+    if user is None or user.deleted_at is not None:
+        return None
+    return user
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
 
 # "Decorator" for protected endpoints. Usage:
 #   @router.post("/foo", dependencies=protected)

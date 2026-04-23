@@ -12,7 +12,7 @@ from fastapi import (
     status,
 )
 
-from app.dependencies.auth import CurrentUser, protected
+from app.dependencies.auth import CurrentUser, OptionalUser, protected
 from app.dependencies.db import AsyncDBSession
 from app.dependencies.storage import ImageServiceDep
 from app.repositories.blog_post import BlogPostRepository
@@ -57,10 +57,13 @@ BlogPostServiceDep = Annotated[BlogPostService, Depends(get_blog_post_service)]
 )
 async def list_blog_posts(
     blog_post_service: BlogPostServiceDep,
+    current_user: OptionalUser,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PaginatedBlogPosts:
-    items, total = await blog_post_service.list_visible(limit=limit, offset=offset)
+    items, total = await blog_post_service.list_visible(
+        limit=limit, offset=offset, include_hidden=current_user is not None
+    )
     return PaginatedBlogPosts(
         items=[BlogPostRead.model_validate(p) for p in items],
         total=total,
@@ -78,9 +81,12 @@ async def list_blog_posts(
 async def get_blog_post_by_link(
     link: str,
     blog_post_service: BlogPostServiceDep,
+    current_user: OptionalUser,
 ) -> BlogPostRead:
     try:
-        post = await blog_post_service.get_visible_by_link(link)
+        post = await blog_post_service.get_visible_by_link(
+            link, include_hidden=current_user is not None
+        )
     except BlogPostNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"
@@ -97,9 +103,12 @@ async def get_blog_post_by_link(
 async def get_blog_post(
     post_id: int,
     blog_post_service: BlogPostServiceDep,
+    current_user: OptionalUser,
 ) -> BlogPostRead:
     try:
-        post = await blog_post_service.get_visible(post_id)
+        post = await blog_post_service.get_visible(
+            post_id, include_hidden=current_user is not None
+        )
     except BlogPostNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Blog post not found"

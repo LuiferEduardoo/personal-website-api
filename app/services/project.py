@@ -120,20 +120,32 @@ class ProjectService:
         return project
 
     async def list_visible(
-        self, *, limit: int, offset: int
+        self, *, limit: int, offset: int, include_hidden: bool = False
     ) -> tuple[list[Project], int]:
-        items = await self.project_repository.list_visible(limit, offset)
-        total = await self.project_repository.count_visible()
+        items = await self.project_repository.list_visible(
+            limit, offset, include_hidden=include_hidden
+        )
+        total = await self.project_repository.count_visible(
+            include_hidden=include_hidden
+        )
         return items, total
 
-    async def get_visible(self, project_id: int) -> Project:
-        project = await self.project_repository.get_visible(project_id)
+    async def get_visible(
+        self, project_id: int, *, include_hidden: bool = False
+    ) -> Project:
+        project = await self.project_repository.get_visible(
+            project_id, include_hidden=include_hidden
+        )
         if project is None:
             raise ProjectNotFoundError()
         return project
 
-    async def get_visible_by_link(self, link: str) -> Project:
-        project = await self.project_repository.get_visible_by_link(link)
+    async def get_visible_by_link(
+        self, link: str, *, include_hidden: bool = False
+    ) -> Project:
+        project = await self.project_repository.get_visible_by_link(
+            link, include_hidden=include_hidden
+        )
         if project is None:
             raise ProjectNotFoundError()
         return project
